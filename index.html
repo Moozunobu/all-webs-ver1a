@@ -2,69 +2,218 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web in Web (タブレット強力版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Web in Web (Safari Style)</title>
     <style>
-        body { margin: 0; font-family: sans-serif; background-color: #f0f0f5; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .control-bar { background-color: #ffffff; padding: 10px; display: flex; gap: 10px; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
-        #url-input { flex-grow: 1; padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; outline: none; background-color: #f2f2f7; }
-        #url-input:focus { background-color: #fff; border-color: #007aff; }
+        /* 全体のリセットとベース設定 */
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #F2F2F7; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        button { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: filter 0.2s; color: white; white-space: nowrap;}
-        button:hover { filter: brightness(90%); }
+        /* ■■■ Safari風のヘッダーデザイン ■■■ */
+        .browser-header {
+            background-color: rgba(249, 249, 249, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #c6c6c8;
+            padding-top: 10px;
+            flex-shrink: 0;
+            z-index: 100;
+        }
 
-        .btn-google { background-color: #4285F4; } 
-        .btn-youtube { background-color: #FF0000; } 
-        .btn-add { background-color: #34c759; }    
+        /* タブエリア */
+        .tabs-scroll-container {
+            display: flex;
+            padding: 0 10px;
+            overflow-x: auto;
+            scrollbar-width: none; /* Firefox */
+        }
+        .tabs-scroll-container::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
-        /* ロックスイッチのデザイン */
-        .lock-switch { display: flex; align-items: center; font-size: 12px; color: #333; background: #eee; padding: 5px 10px; border-radius: 20px; white-space: nowrap;}
-        .lock-switch input { margin-right: 5px; transform: scale(1.2); }
+        .tab {
+            background-color: #e5e5ea;
+            color: #333;
+            padding: 8px 16px;
+            margin-right: 8px;
+            border-radius: 8px 8px 0 0;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            min-width: 120px;
+            max-width: 200px;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.2s;
+            user-select: none;
+        }
+        .tab.active {
+            background-color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 -1px 3px rgba(0,0,0,0.05);
+        }
+        .tab-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1;
+            margin-right: 8px;
+        }
+        .tab-close {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: #8e8e93;
+        }
+        .tab-close:hover { background-color: #d1d1d6; color: #000; }
 
-        .tabs-container { display: flex; background-color: #e5e5ea; padding: 5px 5px 0 5px; overflow-x: auto; border-bottom: 1px solid #ccc; }
-        .tab { background-color: #d1d1d6; padding: 8px 15px; margin-right: 4px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; display: flex; align-items: center; max-width: 200px; white-space: nowrap; user-select: none; }
-        .tab.active { background-color: #ffffff; color: #000; font-weight: bold; }
-        .tab-title { overflow: hidden; text-overflow: ellipsis; margin-right: 8px; }
-        .close-tab { width: 16px; height: 16px; border-radius: 50%; background: #999; color: white; display: flex; align-items: center; justify-content: center; font-size: 10px; opacity: 0.7; }
-        .close-tab:hover { background: #ff3b30; opacity: 1; }
+        .new-tab-btn {
+            display: flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px;
+            font-size: 20px; color: #007aff;
+            cursor: pointer;
+            margin-top: 2px;
+        }
+
+        /* アドレスバーエリア */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            padding: 8px 15px 12px 15px;
+            gap: 10px;
+            background-color: #ffffff;
+        }
+
+        /* ナビゲーションアイコン（戻る・更新など） */
+        .nav-btn {
+            background: none; border: none; cursor: pointer;
+            color: #007aff; font-size: 18px; padding: 5px;
+            border-radius: 5px;
+        }
+        .nav-btn:active { background-color: #f2f2f7; }
+        .nav-btn:disabled { color: #c7c7cc; cursor: default; }
+
+        /* URL入力欄 */
+        .url-bar-container {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        #url-input {
+            width: 100%;
+            padding: 10px 12px 10px 36px; /* アイコン用のスペース */
+            border-radius: 10px;
+            border: none;
+            background-color: #e5e5ea;
+            font-size: 16px;
+            outline: none;
+            color: #000;
+            transition: background 0.2s;
+        }
+        #url-input:focus {
+            background-color: #d1d1d6;
+        }
+        .search-icon {
+            position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+            color: #8e8e93; font-size: 14px;
+        }
+
+        /* 実行ボタン */
+        .go-btn {
+            background-color: #007aff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .go-btn:active { opacity: 0.7; }
         
-        .content-area { flex-grow: 1; position: relative; background-color: white; }
-        iframe { width: 100%; height: 100%; border: none; display: none; }
+        .ext-btn {
+            background: none; border: none; cursor: pointer;
+            color: #007aff; font-size: 20px; padding: 5px;
+        }
+
+        /* コンテンツエリア */
+        .content-area {
+            flex-grow: 1;
+            position: relative;
+            background-color: #fff;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%; height: 100%; border: none;
+            display: none;
+        }
         iframe.active { display: block; }
-        .welcome-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #666; width: 80%; line-height: 1.6; }
+
+        /* ウェルカムメッセージ */
+        .empty-state {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; color: #8e8e93;
+        }
+        .shortcuts {
+            display: flex; gap: 20px; justify-content: center; margin-top: 20px;
+        }
+        .shortcut-item {
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
+            cursor: pointer;
+        }
+        .shortcut-icon {
+            width: 50px; height: 50px; border-radius: 12px; background: #ddd;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; color: white;
+        }
     </style>
 </head>
 <body>
 
-    <div class="control-bar">
-        <input type="text" id="url-input" placeholder="検索ワード または URL">
-        
-        <button class="btn-google" onclick="execGoogle()">Google/URL</button>
-        <button class="btn-youtube" onclick="execYoutube()">YouTube</button>
-        <button class="btn-add" onclick="addNewTab()">＋ 新規</button>
-        
-        <!-- 乗っ取り防止スイッチ -->
-        <label class="lock-switch">
-            <input type="checkbox" id="hijack-blocker" checked>
-            ロック有効
-        </label>
+    <div class="browser-header">
+        <!-- タブ一覧 -->
+        <div class="tabs-scroll-container">
+            <div id="tabs-list" style="display: flex;"></div>
+            <div class="new-tab-btn" onclick="addNewTab()">+</div>
+        </div>
+
+        <!-- 操作バー -->
+        <div class="toolbar">
+            <!-- タブレットのiframeでは戻る/進むの実装がセキュリティ上難しいため、リロードのみ配置 -->
+            <button class="nav-btn" onclick="reloadCurrent()">↻</button>
+            
+            <div class="url-bar-container">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="url-input" placeholder="検索 または URLを入力">
+            </div>
+            
+            <button class="go-btn" onclick="execSearch()">開く</button>
+            
+            <!-- 表示できない時に逃げるボタン -->
+            <button class="ext-btn" onclick="openExternal()" title="Safariで開く">↗</button>
+        </div>
     </div>
 
-    <div class="tabs-container" id="tabs-list"></div>
-
     <div class="content-area" id="frames-container">
-        <div class="welcome-msg">
-            <h3>Web in Web (タブレット版)</h3>
-            <p>
-                <b>【重要：ロック機能について】</b><br>
-                右上の「ロック有効」にチェックが入っていると、<br>
-                検索時やリンククリック時に<br>
-                <span style="color:red; font-weight:bold;">「このページを離れますか？」</span><br>
-                という警告が出ることがあります。<br>
-                <br>
-                その場合は必ず<br>
-                <span style="background:red; color:white; padding:2px 5px;">キャンセル</span><br>
-                を押してください。そうすればタブ内で表示されます。
+        <div class="empty-state" id="welcome-msg">
+            <h2 style="color:#333;">Web in Web</h2>
+            <p>検索ワードを入力して「開く」を押してください</p>
+            
+            <div class="shortcuts">
+                <div class="shortcut-item" onclick="quickSearch('Google')">
+                    <div class="shortcut-icon" style="background:#4285F4;">G</div>
+                    <span style="font-size:12px;">Google</span>
+                </div>
+                <div class="shortcut-item" onclick="quickSearch('Bing')">
+                    <div class="shortcut-icon" style="background:#00809d;">b</div>
+                    <span style="font-size:12px;">Bing</span>
+                </div>
+                <div class="shortcut-item" onclick="quickSearch('YouTube')">
+                    <div class="shortcut-icon" style="background:#FF0000;">▶</div>
+                    <span style="font-size:12px;">YouTube</span>
+                </div>
+            </div>
+            <p style="font-size: 11px; margin-top:30px; color:#ff3b30;">
+                ※一部のサイトはセキュリティ制限により表示できません。<br>
+                その場合は右上の「↗」ボタンでSafariで開いてください。
             </p>
         </div>
     </div>
@@ -73,138 +222,146 @@
         let tabCount = 0;
         let activeTabId = null;
 
-        // ■■■ ページ離脱防止機能（ここが重要） ■■■
-        // 画面全体が切り替わろうとした時に警告を出す
-        window.addEventListener('beforeunload', function (e) {
-            const locker = document.getElementById('hijack-blocker');
-            if (locker && locker.checked) {
-                // 標準的なメッセージ表示（ブラウザにより文言は異なります）
-                e.preventDefault();
-                e.returnValue = ''; 
-            }
-        });
-
         function addNewTab() {
             tabCount++;
             const tabId = `tab-${tabCount}`;
             
-            const tabElement = document.createElement('div');
-            tabElement.className = 'tab';
-            tabElement.id = `btn-${tabId}`;
-            tabElement.innerHTML = `<span class="tab-title">新規タブ</span><span class="close-tab" onclick="closeTab('${tabId}', event)">✕</span>`;
-            tabElement.onclick = () => switchTab(tabId);
+            // タブUI作成
+            const tabBtn = document.createElement('div');
+            tabBtn.className = 'tab';
+            tabBtn.id = `btn-${tabId}`;
+            tabBtn.innerHTML = `
+                <span class="tab-title">新規タブ</span>
+                <span class="tab-close" onclick="closeTab('${tabId}', event)">×</span>
+            `;
+            tabBtn.onclick = () => switchTab(tabId);
+            document.getElementById('tabs-list').appendChild(tabBtn);
             
-            const iframeElement = document.createElement('iframe');
-            iframeElement.id = `frame-${tabId}`;
+            // iframe作成
+            const iframe = document.createElement('iframe');
+            iframe.id = `frame-${tabId}`;
             
-            // sandbox属性：さらに制限を厳しくしました
-            // allow-popups や allow-modals を削除し、allow-presentationも削除
-            iframeElement.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
-
-            document.getElementById('tabs-list').appendChild(tabElement);
-            document.getElementById('frames-container').appendChild(iframeElement);
+            // ■■■ タブレット向けサンドボックス設定 ■■■
+            // allow-top-navigation を外すことで「勝手な画面遷移」を防止
+            // Googleなどはこれで動かない機能が出ますが、Bingなら比較的動きます
+            iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-same-origin allow-popups');
+            
+            document.getElementById('frames-container').appendChild(iframe);
 
             switchTab(tabId);
-            const msg = document.querySelector('.welcome-msg');
-            if(msg) msg.style.display = 'none';
+            document.getElementById('welcome-msg').style.display = 'none';
         }
 
         function switchTab(tabId) {
             activeTabId = tabId;
+            
+            // UI更新
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
-
-            const targetTab = document.getElementById(`btn-${tabId}`);
-            const targetFrame = document.getElementById(`frame-${tabId}`);
             
-            if (targetTab && targetFrame) {
-                targetTab.classList.add('active');
-                targetFrame.classList.add('active');
-                const currentSrc = targetFrame.getAttribute('data-original-input') || '';
-                document.getElementById('url-input').value = currentSrc;
+            const btn = document.getElementById(`btn-${tabId}`);
+            const frame = document.getElementById(`frame-${tabId}`);
+            
+            if(btn) btn.classList.add('active');
+            if(frame) {
+                frame.classList.add('active');
+                // 入力欄を現在のURL(または検索語)に戻す
+                const storedVal = frame.getAttribute('data-input-val') || '';
+                document.getElementById('url-input').value = storedVal;
             }
         }
 
-        function closeTab(tabId, event) {
-            event.stopPropagation();
-            const tabBtn = document.getElementById(`btn-${tabId}`);
-            const tabFrame = document.getElementById(`frame-${tabId}`);
-            if (tabBtn) tabBtn.remove();
-            if (tabFrame) tabFrame.remove();
-
+        function closeTab(tabId, e) {
+            e.stopPropagation();
+            document.getElementById(`btn-${tabId}`).remove();
+            document.getElementById(`frame-${tabId}`).remove();
+            
             if (activeTabId === tabId) {
-                const remainingTabs = document.querySelectorAll('.tab');
-                if (remainingTabs.length > 0) {
-                    const nextTabId = remainingTabs[remainingTabs.length - 1].id.replace('btn-', '');
-                    switchTab(nextTabId);
+                const tabs = document.querySelectorAll('.tab');
+                if (tabs.length > 0) {
+                    const lastId = tabs[tabs.length - 1].id.replace('btn-', '');
+                    switchTab(lastId);
                 } else {
                     activeTabId = null;
-                    document.querySelector('.welcome-msg').style.display = 'block';
+                    document.getElementById('welcome-msg').style.display = 'block';
                     document.getElementById('url-input').value = '';
                 }
             }
         }
 
-        function execGoogle() {
-            if (!checkTab()) return;
-            let input = document.getElementById('url-input').value.trim();
+        // ■ 検索実行メイン関数
+        function execSearch(forceWord = null) {
+            if (!activeTabId) addNewTab();
+            
+            let input = forceWord || document.getElementById('url-input').value.trim();
             if (!input) return;
 
             let url = "";
-            if (input.startsWith('http://') || input.startsWith('https://') || (input.includes('.') && !input.includes(' '))) {
+            // URL判定
+            if (input.match(/^(http|https):\/\//) || (input.includes('.') && !input.includes(' '))) {
                 url = input;
                 if (!url.startsWith('http')) url = 'https://' + url;
+
+                // YouTubeリンク補正
                 if (url.includes('youtube.com/watch') || url.includes('youtu.be/')) {
-                    url = convertYoutubeLink(url);
+                    let vID = "";
+                    if(url.includes('v=')) vID = url.split('v=')[1].split('&')[0];
+                    else if(url.includes('youtu.be/')) vID = url.split('youtu.be/')[1].split('?')[0];
+                    if(vID) url = `https://www.youtube.com/embed/${vID}`;
                 }
             } else {
-                // Bing検索に変更（Googleよりタブレットでのiframe耐性が高いため）
-                // Googleを使いたい場合はここを書き換えてください
+                // ★Googleはiframe制限が厳しいため、Bingをデフォルト検索エンジンにします
+                // これにより「接続拒否」や「勝手なリダイレクト」が減ります
                 url = 'https://www.bing.com/search?q=' + encodeURIComponent(input);
             }
-            updateFrame(url, input);
+
+            loadUrl(url, input);
         }
 
-        function execYoutube() {
-            if (!checkTab()) return;
-            let input = document.getElementById('url-input').value.trim();
-            if (!input) return;
-            let url = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(input)}`;
-            updateFrame(url, "[YouTube] " + input);
+        function quickSearch(engine) {
+            addNewTab();
+            if (engine === 'Google') {
+                // Googleはigu=1パラメータでiframe表示できる確率を上げる
+                loadUrl('https://www.google.com/webhp?igu=1', 'Google');
+            } else if (engine === 'Bing') {
+                loadUrl('https://www.bing.com/', 'Bing');
+            } else if (engine === 'YouTube') {
+                loadUrl('https://www.youtube.com/embed?listType=search&list=trending', 'YouTube');
+            }
         }
 
-        function updateFrame(url, titleText) {
-            const targetFrame = document.getElementById(`frame-${activeTabId}`);
-            const targetTabTitle = document.querySelector(`#btn-${activeTabId} .tab-title`);
+        function loadUrl(url, titleVal) {
+            const frame = document.getElementById(`frame-${activeTabId}`);
+            const tabTitle = document.querySelector(`#btn-${activeTabId} .tab-title`);
             
-            targetFrame.src = url;
-            targetFrame.setAttribute('data-original-input', document.getElementById('url-input').value);
-            targetTabTitle.innerText = titleText;
+            frame.src = url;
+            
+            // 入力値を保存（タブ切り替え時に復元するため）
+            frame.setAttribute('data-input-val', titleVal);
+            document.getElementById('url-input').value = titleVal;
+            
+            // タブ名を簡易更新
+            tabTitle.innerText = titleVal.substring(0, 15);
         }
 
-        function checkTab() {
-            if (!activeTabId) {
-                alert("まずは「新規タブ」を作成してください。");
-                return false;
-            }
-            return true;
+        function reloadCurrent() {
+            if (!activeTabId) return;
+            const frame = document.getElementById(`frame-${activeTabId}`);
+            frame.src = frame.src; // リロード
         }
 
-        function convertYoutubeLink(url) {
-            let videoId = "";
-            if (url.includes('v=')) {
-                videoId = url.split('v=')[1].split('&')[0];
-            } else if (url.includes('youtu.be/')) {
-                videoId = url.split('youtu.be/')[1].split('?')[0];
+        // ■ Safariで開く（脱出ボタン）
+        function openExternal() {
+            if (!activeTabId) return;
+            const frame = document.getElementById(`frame-${activeTabId}`);
+            if (frame && frame.src) {
+                window.open(frame.src, '_blank');
             }
-            if (videoId) {
-                return `https://www.youtube.com/embed/${videoId}`;
-            }
-            return url;
         }
 
-        document.getElementById('url-input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') execGoogle();
+        // エンターキー対応
+        document.getElementById('url-input').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') execSearch();
         });
     </script>
 </body>
