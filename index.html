@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web in Web (YouTube対応版)</title>
+    <title>Web in Web (タブレット強力版)</title>
     <style>
         body { margin: 0; font-family: sans-serif; background-color: #f0f0f5; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .control-bar { background-color: #ffffff; padding: 10px; display: flex; gap: 10px; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
@@ -13,9 +13,13 @@
         button { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: filter 0.2s; color: white; white-space: nowrap;}
         button:hover { filter: brightness(90%); }
 
-        .btn-google { background-color: #4285F4; } /* Google青 */
-        .btn-youtube { background-color: #FF0000; } /* YouTube赤 */
-        .btn-add { background-color: #34c759; }    /* 緑 */
+        .btn-google { background-color: #4285F4; } 
+        .btn-youtube { background-color: #FF0000; } 
+        .btn-add { background-color: #34c759; }    
+
+        /* ロックスイッチのデザイン */
+        .lock-switch { display: flex; align-items: center; font-size: 12px; color: #333; background: #eee; padding: 5px 10px; border-radius: 20px; white-space: nowrap;}
+        .lock-switch input { margin-right: 5px; transform: scale(1.2); }
 
         .tabs-container { display: flex; background-color: #e5e5ea; padding: 5px 5px 0 5px; overflow-x: auto; border-bottom: 1px solid #ccc; }
         .tab { background-color: #d1d1d6; padding: 8px 15px; margin-right: 4px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; display: flex; align-items: center; max-width: 200px; white-space: nowrap; user-select: none; }
@@ -33,30 +37,34 @@
 <body>
 
     <div class="control-bar">
-        <input type="text" id="url-input" placeholder="検索ワード または URLを入力">
+        <input type="text" id="url-input" placeholder="検索ワード または URL">
         
-        <button class="btn-google" onclick="execGoogle()">Google検索 / URL移動</button>
-        <button class="btn-youtube" onclick="execYoutube()">YouTube動画検索</button>
-        <button class="btn-add" onclick="addNewTab()">＋ 新規タブ</button>
+        <button class="btn-google" onclick="execGoogle()">Google/URL</button>
+        <button class="btn-youtube" onclick="execYoutube()">YouTube</button>
+        <button class="btn-add" onclick="addNewTab()">＋ 新規</button>
+        
+        <!-- 乗っ取り防止スイッチ -->
+        <label class="lock-switch">
+            <input type="checkbox" id="hijack-blocker" checked>
+            ロック有効
+        </label>
     </div>
 
     <div class="tabs-container" id="tabs-list"></div>
 
     <div class="content-area" id="frames-container">
         <div class="welcome-msg">
-            <h3>Web in Web</h3>
-            <p><b>---</b></p>
-            <ul style="text-align: left; display: inline-block;">
-                <li><b>Google検索したい時：</b>ワードを入力して青いボタン</li>
-                <li><b>YouTubeを見たい時：</b>ワードを入力して<span style="color:red;">赤いボタン</span><br>
-                    <small>---</small>
-                </li>
-                <li><b>特定のページを開く時：</b>URLを貼り付けて青いボタン</li>
-            </ul>
-            <p style="font-size:0.9em; color:red;">
-                注意：Google検索結果からリンクをクリックして<br>
-                「接続が拒否されました」と出たら、それは表示できないサイトです。<br>
-                また、一部のサイトはセキュリティ制限により表示されません。
+            <h3>Web in Web (タブレット版)</h3>
+            <p>
+                <b>【重要：ロック機能について】</b><br>
+                右上の「ロック有効」にチェックが入っていると、<br>
+                検索時やリンククリック時に<br>
+                <span style="color:red; font-weight:bold;">「このページを離れますか？」</span><br>
+                という警告が出ることがあります。<br>
+                <br>
+                その場合は必ず<br>
+                <span style="background:red; color:white; padding:2px 5px;">キャンセル</span><br>
+                を押してください。そうすればタブ内で表示されます。
             </p>
         </div>
     </div>
@@ -64,6 +72,17 @@
     <script>
         let tabCount = 0;
         let activeTabId = null;
+
+        // ■■■ ページ離脱防止機能（ここが重要） ■■■
+        // 画面全体が切り替わろうとした時に警告を出す
+        window.addEventListener('beforeunload', function (e) {
+            const locker = document.getElementById('hijack-blocker');
+            if (locker && locker.checked) {
+                // 標準的なメッセージ表示（ブラウザにより文言は異なります）
+                e.preventDefault();
+                e.returnValue = ''; 
+            }
+        });
 
         function addNewTab() {
             tabCount++;
@@ -78,14 +97,9 @@
             const iframeElement = document.createElement('iframe');
             iframeElement.id = `frame-${tabId}`;
             
-            // 【重要】ここが修正ポイントです
-            // sandbox属性を追加して、トップナビゲーション（画面全体の書き換え）を禁止します。
-            // allow-scripts: JavaScriptを許可
-            // allow-same-origin: クッキーなどを許可
-            // allow-forms: フォーム送信を許可
-            // allow-presentation: 全画面表示などを許可
-            // ※ allow-top-navigation を入れないことで、乗っ取りを防ぎます
-            iframeElement.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-modals');
+            // sandbox属性：さらに制限を厳しくしました
+            // allow-popups や allow-modals を削除し、allow-presentationも削除
+            iframeElement.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
 
             document.getElementById('tabs-list').appendChild(tabElement);
             document.getElementById('frames-container').appendChild(iframeElement);
@@ -140,12 +154,13 @@
             if (input.startsWith('http://') || input.startsWith('https://') || (input.includes('.') && !input.includes(' '))) {
                 url = input;
                 if (!url.startsWith('http')) url = 'https://' + url;
-                
                 if (url.includes('youtube.com/watch') || url.includes('youtu.be/')) {
                     url = convertYoutubeLink(url);
                 }
             } else {
-                url = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(input);
+                // Bing検索に変更（Googleよりタブレットでのiframe耐性が高いため）
+                // Googleを使いたい場合はここを書き換えてください
+                url = 'https://www.bing.com/search?q=' + encodeURIComponent(input);
             }
             updateFrame(url, input);
         }
@@ -154,7 +169,6 @@
             if (!checkTab()) return;
             let input = document.getElementById('url-input').value.trim();
             if (!input) return;
-
             let url = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(input)}`;
             updateFrame(url, "[YouTube] " + input);
         }
