@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web in Web (YouTube対応版)</title>
+    <style>
+        body { margin: 0; font-family: sans-serif; background-color: #f0f0f5; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .control-bar { background-color: #ffffff; padding: 10px; display: flex; gap: 10px; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
+        #url-input { flex-grow: 1; padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; outline: none; background-color: #f2f2f7; }
+        #url-input:focus { background-color: #fff; border-color: #007aff; }
+        
+        button { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: filter 0.2s; color: white; white-space: nowrap;}
+        button:hover { filter: brightness(90%); }
+
+        .btn-google { background-color: #4285F4; } /* Google青 */
+        .btn-youtube { background-color: #FF0000; } /* YouTube赤 */
+        .btn-add { background-color: #34c759; }    /* 緑 */
+
+        .tabs-container { display: flex; background-color: #e5e5ea; padding: 5px 5px 0 5px; overflow-x: auto; border-bottom: 1px solid #ccc; }
+        .tab { background-color: #d1d1d6; padding: 8px 15px; margin-right: 4px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; display: flex; align-items: center; max-width: 200px; white-space: nowrap; user-select: none; }
+        .tab.active { background-color: #ffffff; color: #000; font-weight: bold; }
+        .tab-title { overflow: hidden; text-overflow: ellipsis; margin-right: 8px; }
+        .close-tab { width: 16px; height: 16px; border-radius: 50%; background: #999; color: white; display: flex; align-items: center; justify-content: center; font-size: 10px; opacity: 0.7; }
+        .close-tab:hover { background: #ff3b30; opacity: 1; }
+        
+        .content-area { flex-grow: 1; position: relative; background-color: white; }
+        iframe { width: 100%; height: 100%; border: none; display: none; }
+        iframe.active { display: block; }
+        .welcome-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #666; width: 80%; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+    <div class="control-bar">
+        <input type="text" id="url-input" placeholder="検索ワード または URLを入力">
+        
+        <button class="btn-google" onclick="execGoogle()">Google検索 / URL移動</button>
+        <button class="btn-youtube" onclick="execYoutube()">YouTube動画検索</button>
+        <button class="btn-add" onclick="addNewTab()">＋ 新規タブ</button>
+    </div>
+
+    <div class="tabs-container" id="tabs-list"></div>
+
+    <div class="content-area" id="frames-container">
+        <div class="welcome-msg">
+            <h3>Web in Web</h3>
+            <p><b>---</b></p>
+            <ul style="text-align: left; display: inline-block;">
+                <li><b>Google検索したい時：</b>ワードを入力して青いボタン</li>
+                <li><b>YouTubeを見たい時：</b>ワードを入力して<span style="color:red;">赤いボタン</span><br>
+                    <small>---</small>
+                </li>
+                <li><b>特定のページを開く時：</b>URLを貼り付けて青いボタン</li>
+            </ul>
+            <p style="font-size:0.9em; color:red;">
+                注意：Google検索結果からリンクをクリックして<br>
+                「接続が拒否されました」と出たら、それは表示できないサイトです。<br>
+                また、一部のサイトはセキュリティ制限により表示されません。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let tabCount = 0;
+        let activeTabId = null;
+
+        function addNewTab() {
+            tabCount++;
+            const tabId = `tab-${tabCount}`;
+            
+            const tabElement = document.createElement('div');
+            tabElement.className = 'tab';
+            tabElement.id = `btn-${tabId}`;
+            tabElement.innerHTML = `<span class="tab-title">新規タブ</span><span class="close-tab" onclick="closeTab('${tabId}', event)">✕</span>`;
+            tabElement.onclick = () => switchTab(tabId);
+            
+            const iframeElement = document.createElement('iframe');
+            iframeElement.id = `frame-${tabId}`;
+            
+            // 【重要】ここが修正ポイントです
+            // sandbox属性を追加して、トップナビゲーション（画面全体の書き換え）を禁止します。
+            // allow-scripts: JavaScriptを許可
+            // allow-same-origin: クッキーなどを許可
+            // allow-forms: フォーム送信を許可
+            // allow-presentation: 全画面表示などを許可
+            // ※ allow-top-navigation を入れないことで、乗っ取りを防ぎます
+            iframeElement.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-modals');
+
+            document.getElementById('tabs-list').appendChild(tabElement);
+            document.getElementById('frames-container').appendChild(iframeElement);
+
+            switchTab(tabId);
+            const msg = document.querySelector('.welcome-msg');
+            if(msg) msg.style.display = 'none';
+        }
+
+        function switchTab(tabId) {
+            activeTabId = tabId;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
+
+            const targetTab = document.getElementById(`btn-${tabId}`);
+            const targetFrame = document.getElementById(`frame-${tabId}`);
+            
+            if (targetTab && targetFrame) {
+                targetTab.classList.add('active');
+                targetFrame.classList.add('active');
+                const currentSrc = targetFrame.getAttribute('data-original-input') || '';
+                document.getElementById('url-input').value = currentSrc;
+            }
+        }
+
+        function closeTab(tabId, event) {
+            event.stopPropagation();
+            const tabBtn = document.getElementById(`btn-${tabId}`);
+            const tabFrame = document.getElementById(`frame-${tabId}`);
+            if (tabBtn) tabBtn.remove();
+            if (tabFrame) tabFrame.remove();
+
+            if (activeTabId === tabId) {
+                const remainingTabs = document.querySelectorAll('.tab');
+                if (remainingTabs.length > 0) {
+                    const nextTabId = remainingTabs[remainingTabs.length - 1].id.replace('btn-', '');
+                    switchTab(nextTabId);
+                } else {
+                    activeTabId = null;
+                    document.querySelector('.welcome-msg').style.display = 'block';
+                    document.getElementById('url-input').value = '';
+                }
+            }
+        }
+
+        function execGoogle() {
+            if (!checkTab()) return;
+            let input = document.getElementById('url-input').value.trim();
+            if (!input) return;
+
+            let url = "";
+            if (input.startsWith('http://') || input.startsWith('https://') || (input.includes('.') && !input.includes(' '))) {
+                url = input;
+                if (!url.startsWith('http')) url = 'https://' + url;
+                
+                if (url.includes('youtube.com/watch') || url.includes('youtu.be/')) {
+                    url = convertYoutubeLink(url);
+                }
+            } else {
+                url = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(input);
+            }
+            updateFrame(url, input);
+        }
+
+        function execYoutube() {
+            if (!checkTab()) return;
+            let input = document.getElementById('url-input').value.trim();
+            if (!input) return;
+
+            let url = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(input)}`;
+            updateFrame(url, "[YouTube] " + input);
+        }
+
+        function updateFrame(url, titleText) {
+            const targetFrame = document.getElementById(`frame-${activeTabId}`);
+            const targetTabTitle = document.querySelector(`#btn-${activeTabId} .tab-title`);
+            
+            targetFrame.src = url;
+            targetFrame.setAttribute('data-original-input', document.getElementById('url-input').value);
+            targetTabTitle.innerText = titleText;
+        }
+
+        function checkTab() {
+            if (!activeTabId) {
+                alert("まずは「新規タブ」を作成してください。");
+                return false;
+            }
+            return true;
+        }
+
+        function convertYoutubeLink(url) {
+            let videoId = "";
+            if (url.includes('v=')) {
+                videoId = url.split('v=')[1].split('&')[0];
+            } else if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0];
+            }
+            if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            return url;
+        }
+
+        document.getElementById('url-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') execGoogle();
+        });
+    </script>
+</body>
+</html>
